@@ -124,9 +124,10 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
     >
       {/* Header with drag handle and controls */}
       <div 
-        className="flex justify-between items-center p-2 cursor-move bg-black bg-opacity-5 rounded-t-lg"
+        className="flex justify-between items-center p-2 bg-black bg-opacity-5 rounded-t-lg"
         {...attributes}
         {...listeners}
+        style={{ cursor: 'move' }}
       >
         <div className="flex space-x-1">
           <div className="w-2 h-2 bg-red-400 rounded-full"></div>
@@ -139,8 +140,9 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
               e.stopPropagation();
               setIsEditing(true);
             }}
-            className="text-gray-600 hover:text-gray-800 text-xs"
+            className="text-gray-600 hover:text-gray-800 text-xs pointer-events-auto"
             title="Edit"
+            style={{ cursor: 'pointer' }}
           >
             ✏️
           </button>
@@ -149,8 +151,9 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
               e.stopPropagation();
               onDelete(note.id);
             }}
-            className="text-gray-600 hover:text-red-600 text-xs"
+            className="text-gray-600 hover:text-red-600 text-xs pointer-events-auto"
             title="Delete"
+            style={{ cursor: 'pointer' }}
           >
             🗑️
           </button>
