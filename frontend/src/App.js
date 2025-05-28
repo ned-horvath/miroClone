@@ -195,6 +195,22 @@ const Whiteboard = ({ whiteboardId }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
 
+  // Configure sensors for @dnd-kit
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 10, // Minimum distance before drag starts
+    },
+  });
+  
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 250,
+      tolerance: 5,
+    },
+  });
+  
+  const sensors = useSensors(mouseSensor, touchSensor);
+
   // Initialize socket connection
   useEffect(() => {
     const newSocket = io(BACKEND_URL);
