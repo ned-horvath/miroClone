@@ -25,17 +25,7 @@ sio = socketio.AsyncServer(
     async_mode='asgi'
 )
 
-# Create the main app
-app = FastAPI()
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
