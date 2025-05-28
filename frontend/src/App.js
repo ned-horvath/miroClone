@@ -262,8 +262,8 @@ const Whiteboard = ({ whiteboardId }) => {
     try {
       const noteData = {
         content: '',
-        x: x - viewPort.x,
-        y: y - viewPort.y,
+        x: x,
+        y: y,
         color: '#ffeb3b'
       };
 
