@@ -208,8 +208,20 @@ async def note_drag(sid, data):
     whiteboard_id = data.get('whiteboard_id')
     await sio.emit("note_dragging", data, room=whiteboard_id, skip_sid=sid)
 
-# Include the router in the main app
-app.include_router(api_router)
+# Create the Socket.IO ASGI app and use it as the main app
+app = socketio.ASGIApp(sio, FastAPI())
+
+# Add the API router to the internal FastAPI app
+app.other_asgi_app.include_router(api_router)
+
+# Add CORS middleware to the internal FastAPI app
+app.other_asgi_app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure logging
 logging.basicConfig(
@@ -218,9 +230,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-@app.on_event("shutdown")
+@app.other_asgi_app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
-
-# Create the Socket.IO ASGI app
-socket_app = socketio.ASGIApp(sio, app)
