@@ -114,7 +114,7 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
+      className={`sticky-note bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
         isDragging ? 'shadow-xl scale-105' : 'hover:shadow-md'
       } ${isCollaborativeUpdate ? 'ring-2 ring-blue-400' : ''}`}
     >
