@@ -186,6 +186,7 @@ const Whiteboard = ({ whiteboardId }) => {
   const [socket, setSocket] = useState(null);
   const [viewPort, setViewPort] = useState({ x: 0, y: 0, scale: 1 });
   const [isConnected, setIsConnected] = useState(false);
+  const [activeId, setActiveId] = useState(null);
   const whiteboardRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
@@ -302,6 +303,41 @@ const Whiteboard = ({ whiteboardId }) => {
     }
   };
 
+  // DnD Kit handlers
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragMove = (event) => {
+    const { active, delta } = event;
+    if (active && delta) {
+      const note = notes.find(n => n.id === active.id);
+      if (note) {
+        const newPosition = {
+          x: note.x + delta.x,
+          y: note.y + delta.y
+        };
+        handleNoteDrag(active.id, newPosition);
+      }
+    }
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, delta } = event;
+    setActiveId(null);
+    
+    if (active && delta) {
+      const note = notes.find(n => n.id === active.id);
+      if (note) {
+        const newPosition = {
+          x: note.x + delta.x,
+          y: note.y + delta.y
+        };
+        updateNote(active.id, newPosition);
+      }
+    }
+  };
+
   // Handle whiteboard double-click to create new note
   const handleWhiteboardDoubleClick = (e) => {
     if (e.target === whiteboardRef.current) {
@@ -349,6 +385,8 @@ const Whiteboard = ({ whiteboardId }) => {
     }));
   };
 
+  const activeNote = activeId ? notes.find(note => note.id === activeId) : null;
+
   return (
     <div className="w-full h-screen overflow-hidden bg-gray-100 relative">
       {/* Header */}
@@ -371,43 +409,65 @@ const Whiteboard = ({ whiteboardId }) => {
       </div>
 
       {/* Whiteboard Canvas */}
-      <div
-        ref={whiteboardRef}
-        className="absolute inset-0 pt-16 cursor-grab active:cursor-grabbing"
-        style={{
-          transform: `translate(${viewPort.x}px, ${viewPort.y}px) scale(${viewPort.scale})`,
-          transformOrigin: '0 0'
-        }}
-        onDoubleClick={handleWhiteboardDoubleClick}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
       >
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-20">
-          <svg width="100%" height="100%" style={{ minWidth: '200vw', minHeight: '200vh' }}>
-            <defs>
-              <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-                <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
+        <div
+          ref={whiteboardRef}
+          className="absolute inset-0 pt-16 cursor-grab active:cursor-grabbing"
+          style={{
+            transform: `translate(${viewPort.x}px, ${viewPort.y}px) scale(${viewPort.scale})`,
+            transformOrigin: '0 0'
+          }}
+          onDoubleClick={handleWhiteboardDoubleClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
+        >
+          {/* Grid Pattern */}
+          <div className="absolute inset-0 opacity-20">
+            <svg width="100%" height="100%" style={{ minWidth: '200vw', minHeight: '200vh' }}>
+              <defs>
+                <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+          </div>
+
+          {/* Sticky Notes */}
+          {notes.map(note => (
+            <StickyNote
+              key={note.id}
+              note={note}
+              onUpdate={updateNote}
+              onDelete={deleteNote}
+              onDrag={handleNoteDrag}
+              isCollaborativeUpdate={note.isCollaborativeUpdate}
+              isDragging={activeId === note.id}
+            />
+          ))}
         </div>
 
-        {/* Sticky Notes */}
-        {notes.map(note => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            onUpdate={updateNote}
-            onDelete={deleteNote}
-            onDrag={handleNoteDrag}
-            isCollaborativeUpdate={note.isCollaborativeUpdate}
-          />
-        ))}
-      </div>
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeNote ? (
+            <StickyNote
+              note={activeNote}
+              onUpdate={() => {}}
+              onDelete={() => {}}
+              onDrag={() => {}}
+              isCollaborativeUpdate={false}
+              isDragging={true}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Zoom Controls */}
       <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-2 z-30">
