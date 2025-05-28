@@ -351,7 +351,7 @@ const Whiteboard = ({ whiteboardId }) => {
 
   // Pan functionality
   const handleMouseDown = (e) => {
-    if (e.target === whiteboardRef.current) {
+    if (!e.target.closest('.sticky-note')) {
       setIsPanning(true);
       setLastPanPoint({ x: e.clientX, y: e.clientY });
     }
