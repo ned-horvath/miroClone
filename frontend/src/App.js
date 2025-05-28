@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-import Draggable from 'react-draggable';
+import {
+  DndContext,
+  useDraggable,
+  DragOverlay,
+  closestCenter,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { v4 as uuidv4 } from 'uuid';
 import './App.css';
 
