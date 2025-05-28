@@ -6,6 +6,10 @@ import {
   useDraggable,
   DragOverlay,
   closestCenter,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { v4 as uuidv4 } from 'uuid';
