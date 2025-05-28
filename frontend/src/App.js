@@ -213,7 +213,10 @@ const Whiteboard = ({ whiteboardId }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io(BACKEND_URL);
+    const newSocket = io(BACKEND_URL, {
+      path: '/socket.io/',
+      transports: ['websocket', 'polling']
+    });
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
