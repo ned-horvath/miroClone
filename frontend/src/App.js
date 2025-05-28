@@ -329,15 +329,23 @@ const Whiteboard = ({ whiteboardId }) => {
   };
 
   const handleDragMove = (event) => {
+    // Let @dnd-kit handle the visual dragging
+    // Only emit real-time updates for collaboration
     const { active, delta } = event;
-    if (active && delta) {
+    if (active && delta && socket) {
       const note = notes.find(n => n.id === active.id);
       if (note) {
         const newPosition = {
           x: note.x + delta.x,
           y: note.y + delta.y
         };
-        handleNoteDrag(active.id, newPosition);
+        // Emit for real-time collaboration (optional)
+        socket.emit('note_drag', {
+          whiteboard_id: whiteboardId,
+          note_id: active.id,
+          x: newPosition.x,
+          y: newPosition.y
+        });
       }
     }
   };
@@ -353,6 +361,15 @@ const Whiteboard = ({ whiteboardId }) => {
           x: note.x + delta.x,
           y: note.y + delta.y
         };
+        
+        // Update local state immediately for responsive UI
+        setNotes(prev => prev.map(n => 
+          n.id === active.id 
+            ? { ...n, x: newPosition.x, y: newPosition.y }
+            : n
+        ));
+        
+        // Update backend
         updateNote(active.id, newPosition);
       }
     }
