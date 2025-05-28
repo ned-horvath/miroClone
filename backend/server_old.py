@@ -1,7 +1,8 @@
 from fastapi import FastAPI, APIRouter, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi_socketio import SocketManager
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import socketio
 import os
 import logging
 from pathlib import Path
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime
-from dotenv import load_dotenv
+import socketio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,23 +20,11 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create Socket.IO server
-sio = socketio.AsyncServer(
-    cors_allowed_origins="*",
-    async_mode='asgi'
-)
-
 # Create the main app
 app = FastAPI()
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Socket.IO manager
+socket_manager = SocketManager(app=app, cors_allowed_origins=["*"])
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -126,7 +115,7 @@ async def create_note(whiteboard_id: str, note_data: StickyNoteCreate):
     )
     
     # Broadcast to all connected clients
-    await sio.emit("note_created", {
+    await socket_manager.emit("note_created", {
         "whiteboard_id": whiteboard_id,
         "note": note.dict()
     })
@@ -153,7 +142,7 @@ async def update_note(whiteboard_id: str, note_id: str, note_data: StickyNoteUpd
     updated_note = next((note for note in whiteboard["notes"] if note["id"] == note_id), None)
     
     # Broadcast to all connected clients
-    await sio.emit("note_updated", {
+    await socket_manager.emit("note_updated", {
         "whiteboard_id": whiteboard_id,
         "note": updated_note
     })
@@ -174,7 +163,7 @@ async def delete_note(whiteboard_id: str, note_id: str):
         raise HTTPException(status_code=404, detail="Note not found")
     
     # Broadcast to all connected clients
-    await sio.emit("note_deleted", {
+    await socket_manager.emit("note_deleted", {
         "whiteboard_id": whiteboard_id,
         "note_id": note_id
     })
@@ -182,34 +171,42 @@ async def delete_note(whiteboard_id: str, note_id: str):
     return {"message": "Note deleted successfully"}
 
 # Socket.IO events
-@sio.event
-async def connect(sid, environ):
+@socket_manager.on('connect')
+async def handle_connect(sid, environ):
     print(f"Client {sid} connected")
 
-@sio.event
-async def disconnect(sid):
+@socket_manager.on('disconnect')
+async def handle_disconnect(sid):
     print(f"Client {sid} disconnected")
 
-@sio.event
-async def join_whiteboard(sid, data):
+@socket_manager.on('join_whiteboard')
+async def handle_join_whiteboard(sid, data):
     whiteboard_id = data.get('whiteboard_id')
-    await sio.enter_room(sid, whiteboard_id)
+    await socket_manager.enter_room(sid, whiteboard_id)
     print(f"Client {sid} joined whiteboard {whiteboard_id}")
 
-@sio.event
-async def leave_whiteboard(sid, data):
+@socket_manager.on('leave_whiteboard')
+async def handle_leave_whiteboard(sid, data):
     whiteboard_id = data.get('whiteboard_id')
-    await sio.leave_room(sid, whiteboard_id)
+    await socket_manager.leave_room(sid, whiteboard_id)
     print(f"Client {sid} left whiteboard {whiteboard_id}")
 
-@sio.event
-async def note_drag(sid, data):
+@socket_manager.on('note_drag')
+async def handle_note_drag(sid, data):
     # Broadcast real-time note position updates
     whiteboard_id = data.get('whiteboard_id')
-    await sio.emit("note_dragging", data, room=whiteboard_id, skip_sid=sid)
+    await socket_manager.emit("note_dragging", data, room=whiteboard_id, skip_sid=sid)
 
 # Include the router in the main app
 app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure logging
 logging.basicConfig(
@@ -221,6 +218,3 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
-
-# Create the Socket.IO ASGI app
-socket_app = socketio.ASGIApp(sio, app)
