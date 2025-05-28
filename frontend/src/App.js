@@ -49,6 +49,7 @@ const StickyNote = ({ note, onUpdate, onDelete, isCollaborativeUpdate }) => {
   const handleMouseDown = (e) => {
     if (isEditing) return;
     
+    console.log('Drag started for note:', note.id);
     setIsDragging(true);
     setDragStart({
       x: e.clientX,
@@ -57,44 +58,54 @@ const StickyNote = ({ note, onUpdate, onDelete, isCollaborativeUpdate }) => {
       noteY: note.y
     });
     
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
     e.preventDefault();
+    e.stopPropagation();
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    
-    const deltaX = e.clientX - dragStart.x;
-    const deltaY = e.clientY - dragStart.y;
-    
-    const newX = dragStart.noteX + deltaX;
-    const newY = dragStart.noteY + deltaY;
-    
-    // Update position visually
-    if (noteRef.current) {
-      noteRef.current.style.left = `${newX}px`;
-      noteRef.current.style.top = `${newY}px`;
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      const newX = dragStart.noteX + deltaX;
+      const newY = dragStart.noteY + deltaY;
+      
+      // Update position visually
+      if (noteRef.current) {
+        noteRef.current.style.left = `${newX}px`;
+        noteRef.current.style.top = `${newY}px`;
+      }
+    };
+
+    const handleMouseUp = (e) => {
+      if (!isDragging) return;
+      
+      console.log('Drag ended for note:', note.id);
+      setIsDragging(false);
+      
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      const newX = dragStart.noteX + deltaX;
+      const newY = dragStart.noteY + deltaY;
+      
+      // Update backend
+      console.log(`Updating note ${note.id} position to (${newX}, ${newY})`);
+      onUpdate(note.id, { x: newX, y: newY });
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
     }
-  };
-
-  const handleMouseUp = (e) => {
-    if (!isDragging) return;
-    
-    setIsDragging(false);
-    
-    const deltaX = e.clientX - dragStart.x;
-    const deltaY = e.clientY - dragStart.y;
-    
-    const newX = dragStart.noteX + deltaX;
-    const newY = dragStart.noteY + deltaY;
-    
-    // Update backend
-    onUpdate(note.id, { x: newX, y: newY });
-    
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
+  }, [isDragging, dragStart, note.id, note.x, note.y, onUpdate]);
 
   const renderContent = () => {
     if (note.media_type === 'link' && note.media_url) {
