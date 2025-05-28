@@ -18,35 +18,14 @@ import './App.css';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Sticky Note Component
-const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, isDragging: externalIsDragging }) => {
+// Sticky Note Component - Simplified Drag Implementation
+const StickyNote = ({ note, onUpdate, onDelete, isCollaborativeUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0, noteX: 0, noteY: 0 });
   const textareaRef = useRef(null);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    isDragging: internalIsDragging,
-  } = useDraggable({
-    id: note.id,
-    disabled: isEditing,
-  });
-
-  const isDragging = internalIsDragging || externalIsDragging;
-
-  const style = {
-    position: 'absolute',
-    left: `${note.x}px`,
-    top: `${note.y}px`,
-    width: `${note.width}px`,
-    height: `${note.height}px`,
-    backgroundColor: note.color,
-    transform: CSS.Translate.toString(transform),
-    zIndex: isDragging ? 50 : 10,
-  };
+  const noteRef = useRef(null);
 
   useEffect(() => {
     setContent(note.content);
@@ -75,6 +54,57 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
       setContent(note.content);
       setIsEditing(false);
     }
+  };
+
+  // Simple drag implementation
+  const handleMouseDown = (e) => {
+    if (isEditing) return;
+    
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX,
+      y: e.clientY,
+      noteX: note.x,
+      noteY: note.y
+    });
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    
+    const newX = dragStart.noteX + deltaX;
+    const newY = dragStart.noteY + deltaY;
+    
+    // Update position visually
+    if (noteRef.current) {
+      noteRef.current.style.left = `${newX}px`;
+      noteRef.current.style.top = `${newY}px`;
+    }
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isDragging) return;
+    
+    setIsDragging(false);
+    
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    
+    const newX = dragStart.noteX + deltaX;
+    const newY = dragStart.noteY + deltaY;
+    
+    // Update backend
+    onUpdate(note.id, { x: newX, y: newY });
+    
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
   };
 
   const renderContent = () => {
@@ -116,18 +146,23 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      className={`sticky-note bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
-        isDragging ? 'shadow-xl scale-105' : 'hover:shadow-md'
+      ref={noteRef}
+      className={`sticky-note absolute bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
+        isDragging ? 'shadow-xl scale-105 z-50' : 'hover:shadow-md z-10'
       } ${isCollaborativeUpdate ? 'ring-2 ring-blue-400' : ''}`}
+      style={{
+        left: `${note.x}px`,
+        top: `${note.y}px`,
+        width: `${note.width}px`,
+        height: `${note.height}px`,
+        backgroundColor: note.color,
+        cursor: isDragging ? 'grabbing' : 'auto'
+      }}
     >
       {/* Header with drag handle and controls */}
       <div 
-        className="flex justify-between items-center p-2 bg-black bg-opacity-5 rounded-t-lg"
-        {...attributes}
-        {...listeners}
-        style={{ cursor: 'move' }}
+        className="flex justify-between items-center p-2 bg-black bg-opacity-5 rounded-t-lg cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
       >
         <div className="flex space-x-1">
           <div className="w-2 h-2 bg-red-400 rounded-full"></div>
@@ -140,9 +175,8 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
               e.stopPropagation();
               setIsEditing(true);
             }}
-            className="text-gray-600 hover:text-gray-800 text-xs pointer-events-auto"
+            className="text-gray-600 hover:text-gray-800 text-xs pointer-events-auto cursor-pointer"
             title="Edit"
-            style={{ cursor: 'pointer' }}
           >
             ✏️
           </button>
@@ -151,9 +185,8 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, i
               e.stopPropagation();
               onDelete(note.id);
             }}
-            className="text-gray-600 hover:text-red-600 text-xs pointer-events-auto"
+            className="text-gray-600 hover:text-red-600 text-xs pointer-events-auto cursor-pointer"
             title="Delete"
-            style={{ cursor: 'pointer' }}
           >
             🗑️
           </button>
