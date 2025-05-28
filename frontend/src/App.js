@@ -431,6 +431,7 @@ const Whiteboard = ({ whiteboardId }) => {
 
       {/* Whiteboard Canvas */}
       <DndContext
+        sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
