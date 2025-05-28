@@ -31,4 +31,5 @@ typer>=0.14.0
 requests>=2.31.0
 gitpython>=3.1.44
 setuptools>=45
-wheelfastapi-socketio==0.0.10
+motor>=3.3.2
+python-socketio[asyncio_client]>=5.13.0
