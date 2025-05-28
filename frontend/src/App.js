@@ -340,10 +340,11 @@ const Whiteboard = ({ whiteboardId }) => {
 
   // Handle whiteboard double-click to create new note
   const handleWhiteboardDoubleClick = (e) => {
-    if (e.target === whiteboardRef.current) {
+    // Check if the click target is not a sticky note
+    if (!e.target.closest('.sticky-note')) {
       const rect = whiteboardRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = (e.clientX - rect.left - viewPort.x) / viewPort.scale;
+      const y = (e.clientY - rect.top - viewPort.y) / viewPort.scale;
       createNote(x, y);
     }
   };
