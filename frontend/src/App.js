@@ -15,11 +15,34 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 // Sticky Note Component
-const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate }) => {
+const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate, isDragging: externalIsDragging }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(note.content);
-  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef(null);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging: internalIsDragging,
+  } = useDraggable({
+    id: note.id,
+    disabled: isEditing,
+  });
+
+  const isDragging = internalIsDragging || externalIsDragging;
+
+  const style = {
+    position: 'absolute',
+    left: `${note.x}px`,
+    top: `${note.y}px`,
+    width: `${note.width}px`,
+    height: `${note.height}px`,
+    backgroundColor: note.color,
+    transform: CSS.Translate.toString(transform),
+    zIndex: isDragging ? 50 : 10,
+  };
 
   useEffect(() => {
     setContent(note.content);
@@ -48,18 +71,6 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate })
       setContent(note.content);
       setIsEditing(false);
     }
-  };
-
-  const handleDrag = (e, data) => {
-    if (!isDragging) {
-      setIsDragging(true);
-    }
-    onDrag(note.id, { x: data.x, y: data.y });
-  };
-
-  const handleDragStop = (e, data) => {
-    setIsDragging(false);
-    onUpdate(note.id, { x: data.x, y: data.y });
   };
 
   const renderContent = () => {
@@ -100,73 +111,72 @@ const StickyNote = ({ note, onUpdate, onDelete, onDrag, isCollaborativeUpdate })
   };
 
   return (
-    <Draggable
-      position={{ x: note.x, y: note.y }}
-      onDrag={handleDrag}
-      onStop={handleDragStop}
-      handle=".drag-handle"
-      disabled={isEditing}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
+        isDragging ? 'shadow-xl scale-105' : 'hover:shadow-md'
+      } ${isCollaborativeUpdate ? 'ring-2 ring-blue-400' : ''}`}
     >
-      <div
-        className={`absolute bg-yellow-200 border border-yellow-300 rounded-lg shadow-lg transition-all duration-200 ${
-          isDragging ? 'shadow-xl scale-105 z-50' : 'hover:shadow-md z-10'
-        } ${isCollaborativeUpdate ? 'ring-2 ring-blue-400' : ''}`}
-        style={{
-          width: `${note.width}px`,
-          height: `${note.height}px`,
-          backgroundColor: note.color
-        }}
+      {/* Header with drag handle and controls */}
+      <div 
+        className="flex justify-between items-center p-2 cursor-move bg-black bg-opacity-5 rounded-t-lg"
+        {...attributes}
+        {...listeners}
       >
-        {/* Header with drag handle and controls */}
-        <div className="drag-handle flex justify-between items-center p-2 cursor-move bg-black bg-opacity-5 rounded-t-lg">
-          <div className="flex space-x-1">
-            <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-            <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-          </div>
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setIsEditing(true)}
-              className="text-gray-600 hover:text-gray-800 text-xs"
-              title="Edit"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={() => onDelete(note.id)}
-              className="text-gray-600 hover:text-red-600 text-xs"
-              title="Delete"
-            >
-              🗑️
-            </button>
-          </div>
+        <div className="flex space-x-1">
+          <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+          <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
         </div>
-
-        {/* Content area */}
-        <div className="p-3 h-full overflow-hidden">
-          {isEditing ? (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyPress}
-              className="w-full h-full resize-none border-none outline-none bg-transparent text-sm"
-              placeholder="Enter your note..."
-            />
-          ) : (
-            <div 
-              className="w-full h-full text-sm cursor-text overflow-auto"
-              onClick={() => setIsEditing(true)}
-            >
-              {renderContent() || (
-                <span className="text-gray-500 italic">Click to edit...</span>
-              )}
-            </div>
-          )}
+        <div className="flex space-x-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className="text-gray-600 hover:text-gray-800 text-xs"
+            title="Edit"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(note.id);
+            }}
+            className="text-gray-600 hover:text-red-600 text-xs"
+            title="Delete"
+          >
+            🗑️
+          </button>
         </div>
       </div>
-    </Draggable>
+
+      {/* Content area */}
+      <div className="p-3 h-full overflow-hidden">
+        {isEditing ? (
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyPress}
+            className="w-full h-full resize-none border-none outline-none bg-transparent text-sm"
+            placeholder="Enter your note..."
+          />
+        ) : (
+          <div 
+            className="w-full h-full text-sm cursor-text overflow-auto"
+            onClick={() => setIsEditing(true)}
+          >
+            {renderContent() || (
+              <span className="text-gray-500 italic">Click to edit...</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
