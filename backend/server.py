@@ -198,9 +198,6 @@ async def note_drag(sid, data):
     whiteboard_id = data.get('whiteboard_id')
     await sio.emit("note_dragging", data, room=whiteboard_id, skip_sid=sid)
 
-# Include the router in the main app
-api_router.include_router(api_router)
-
 # Create the main FastAPI app
 fastapi_app = FastAPI()
 
