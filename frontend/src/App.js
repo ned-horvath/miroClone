@@ -229,6 +229,7 @@ const Whiteboard = ({ whiteboardId }) => {
   const whiteboardRef = useRef(null);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
+  const [clickTimeout, setClickTimeout] = useState(null);
 
   // Initialize socket connection
   useEffect(() => {
@@ -282,8 +283,12 @@ const Whiteboard = ({ whiteboardId }) => {
     return () => {
       newSocket.emit('leave_whiteboard', { whiteboard_id: whiteboardId });
       newSocket.close();
+      // Clean up any pending timeout
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
     };
-  }, [whiteboardId]);
+  }, [whiteboardId, clickTimeout]);
 
   // Load whiteboard data
   useEffect(() => {
@@ -336,6 +341,13 @@ const Whiteboard = ({ whiteboardId }) => {
   // Handle whiteboard double-click to create new note
   const handleWhiteboardDoubleClick = (e) => {
     console.log('Double-click detected', e.target);
+    
+    // Cancel any pending pan operation
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      setClickTimeout(null);
+    }
+    
     // Check if the click target is not a sticky note
     if (!e.target.closest('.sticky-note')) {
       const rect = whiteboardRef.current.getBoundingClientRect();
@@ -348,11 +360,23 @@ const Whiteboard = ({ whiteboardId }) => {
     }
   };
 
-  // Pan functionality
+  // Pan functionality with double-click compatibility
   const handleMouseDown = (e) => {
     if (!e.target.closest('.sticky-note')) {
-      setIsPanning(true);
-      setLastPanPoint({ x: e.clientX, y: e.clientY });
+      // Clear any existing timeout
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        setClickTimeout(null);
+      }
+      
+      // Set a timeout to start panning only if no double-click occurs
+      const timeout = setTimeout(() => {
+        setIsPanning(true);
+        setLastPanPoint({ x: e.clientX, y: e.clientY });
+        setClickTimeout(null);
+      }, 200);
+      
+      setClickTimeout(timeout);
     }
   };
 
